@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Federated PatchCore</title>
+  </head>
+  <body>
+
+    <h1>Federated PatchCore</h1>
+    <p>Found training image locally:</p>
+    <div>    
+    {% for image in input_images %}
+      <img style="width:8em;"src="{{ url_for('static', filename=image) }}"/>
+    {% endfor %}
+    </div>
+    <button hx-get="/train" hx-swap="innerHTML" hx-target="#local-memory-bank">
+      Train Local Patchcore on these images
+    </button>
+
+    <h2>Local memory bank</h2>
+    <button hx-get="/send">
+      Send local memory bank
+    </button>
+    <div id="local-memory-bank"></div>
+
+    <h2>Server memory bank</h2>
+    <button hx-get="/load-server-metadata" hx-swap="innerHTML" hx-target="#server-memory-bank">
+      Retrieve server metadata
+    </button>
+    <button hx-get="/load-server-bank" hx-swap="innerHTML" hx-target="#local-memory-bank">
+      Retrieve server memory bank
+    </button>
+    <div id="server-memory-bank"></div>
+
+
+    <h2>Testing</h2>
+    <button hx-get="/test" hx-swap="innerHTML" hx-target="#test-results">
+      Run tests
+    </button>
+    <div id="test-results"></div>
+
+  </body>
+
+  <script src="https://unpkg.com/htmx.org@1.8.6"></script>
+
+</html> 

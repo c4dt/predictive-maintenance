@@ -1,0 +1,11 @@
+<ul>
+    <li>image_AUROC: {{ results.image_AUROC }}</li>
+    <li>image_F1Score: {{ results.image_F1Score }}</li>
+    <li>pixel_AUROC: {{ results.pixel_AUROC }}</li>
+    <li>pixel_F1Score: {{ results.pixel_F1Score }}</li>
+</ul>
+<div>    
+    {% for image in images %}
+      <img style="height:12em;"src="{{ url_for('static', filename=image) }}"/>
+    {% endfor %}
+</div>
