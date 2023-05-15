@@ -1,5 +1,5 @@
 import os
-import numpy as     np
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -11,7 +11,7 @@ from torchvision.datasets import ImageFolder
 
 
 class BinaryMVtec(Dataset):
-    def __init__(self, root='./data', train=True, transform=None, normal_class='good'):
+    def __init__(self, root='./data/small', train=True, transform=None, normal_class='good'):
         self.transform = transform
 
         if train:
@@ -54,39 +54,7 @@ class BinaryMVtec(Dataset):
         return self.labels
 
 
-# This is to reduce the CIFAR10 images to a binary set, else there are
-# 10 labels, and this can't be used for a binary classificator.
-class BinaryCIFAR10(Dataset):
-    def __init__(self, root='./data', train=True, transform=None):
-        self.transform = transform
-
-        cifar10_dataset = datasets.CIFAR10(root=root, train=train, download=True)
-        images, labels = np.array(cifar10_dataset.data), np.array(cifar10_dataset.targets)
-
-        self.images, self.labels = self.create_binary_dataset(images, labels)
-
-    def create_binary_dataset(self, images, labels):
-        binary_indices = np.where(labels < 2)[0]
-        binary_images = images[binary_indices]
-        binary_labels = labels[binary_indices].flatten()
-        return binary_images, binary_labels
-
-    def __len__(self):
-        return len(self.images)
-
-    def __getitem__(self, idx):
-        image = self.images[idx]
-        label = self.labels[idx]
-
-        image = Image.fromarray(image)
-
-        if self.transform:
-            image = self.transform(image)
-
-        return image, torch.tensor(label, dtype=torch.long)
-
-
-def main(device, mvtec=False):
+def main(device):
     # Load your dataset
     # Replace this with your actual dataset loading code
     transform = transforms.Compose([
@@ -95,12 +63,8 @@ def main(device, mvtec=False):
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    if mvtec:
-        train_dataset = BinaryMVtec(train=True, transform=transform)
-        test_dataset = BinaryMVtec(train=False, transform=transform)
-    else:
-        train_dataset = BinaryCIFAR10(train=True, transform=transform)
-        test_dataset = BinaryCIFAR10(train=False, transform=transform)
+    train_dataset = BinaryMVtec(train=True, transform=transform)
+    test_dataset = BinaryMVtec(train=False, transform=transform)
 
     train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=2)
     test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=2)
@@ -111,41 +75,37 @@ def main(device, mvtec=False):
     # Remove the last layer to use the features as input to the MLP
     resnet_model = nn.Sequential(*list(resnet_model.children())[:-1])
 
-    # Define the MLP classifier
-    class MLPClassifier(nn.Module):
+    # Define the Linear Regression model
+    class LinearRegressionModel(nn.Module):
         def __init__(self, input_size, output_classes):
-            super(MLPClassifier, self).__init__()
-            self.fc1 = nn.Linear(input_size, 256)
-            self.fc2 = nn.Linear(256, 128)
-            self.fc3 = nn.Linear(128, output_classes)
+            super(LinearRegressionModel, self).__init__()
+            self.linear = nn.Linear(input_size, output_classes)
 
         def forward(self, x):
             x = x.view(x.size(0), -1)
-            x = torch.relu(self.fc1(x))
-            x = torch.relu(self.fc2(x))
-            x = self.fc3(x)
+            x = self.linear(x)
             return x
 
-    # Create MLP model
-    mlp_model = MLPClassifier(input_size=512, output_classes=2)
+    # Create Linear Regression model
+    linear_model = LinearRegressionModel(input_size=512, output_classes=2)
 
-    # Combine ResNet and MLP models
+    # Combine ResNet and Linear Regression models
     class CombinedModel(nn.Module):
-        def __init__(self, resnet, mlp):
+        def __init__(self, resnet, linear):
             super(CombinedModel, self).__init__()
             self.resnet = resnet
-            self.mlp = mlp
+            self.linear = linear
 
         def forward(self, x):
             x = self.resnet(x)
-            x = self.mlp(x)
+            x = self.linear(x)
             return x
 
-    combined_model = CombinedModel(resnet_model, mlp_model).to(device)
+    combined_model = CombinedModel(resnet_model, linear_model).to(device)
 
     # Define loss function and optimizer
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(combined_model.parameters(), lr=0.001)
+    optimizer = optim.Adam(combined_model.parameters(), lr=0.000001)
 
     # Train the model
     combined_model.train()
@@ -190,4 +150,4 @@ if __name__ == '__main__':
     print("Found device: " + device_str)
     device = torch.device(device_str)
 
-    main(device, mvtec=False)
+    main(device)
