@@ -1,20 +1,70 @@
+import os
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import datasets, transforms, models
-from torchvision.models import ResNet18_Weights
-from torch.utils.data import DataLoader, Dataset
 from PIL import Image
+from torch.utils.data import DataLoader, Dataset
+from torchvision import datasets, models, transforms
+from torchvision.datasets import ImageFolder
+from torchvision.models import ResNet18_Weights
+
+
+class BinaryMVtec(Dataset):
+    def __init__(self, root="./data", train=True, transform=None, normal_class="good"):
+        self.transform = transform
+
+        if train:
+            data_dir = os.path.join(root, "train")
+        else:
+            data_dir = os.path.join(root, "test")
+
+        self.dataset = ImageFolder(data_dir)
+
+        self.normal_class = self.dataset.class_to_idx[normal_class]
+        self.images, self.labels = self.create_binary_dataset()
+
+    def create_binary_dataset(self):
+        normal_indices = []
+        abnormal_indices = []
+        for i, (image, label) in enumerate(self.dataset):
+            if label == self.normal_class:
+                normal_indices.append(i)
+            else:
+                abnormal_indices.append(i)
+
+        binary_indices = normal_indices + abnormal_indices
+        binary_images = [self.dataset[i][0] for i in binary_indices]
+        binary_labels = [int(i in normal_indices) for i in binary_indices]
+        return binary_images, binary_labels
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+        image = self.images[idx]
+        label = self.labels[idx]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, torch.tensor(label, dtype=torch.long)
+
+    def get_labels(self):
+        return self.labels
+
 
 # This is to reduce the CIFAR10 images to a binary set, else there are
 # 10 labels, and this can't be used for a binary classificator.
 class BinaryCIFAR10(Dataset):
-    def __init__(self, root='./data', train=True, transform=None):
+    def __init__(self, root="./data", train=True, transform=None):
         self.transform = transform
 
         cifar10_dataset = datasets.CIFAR10(root=root, train=train, download=True)
-        images, labels = np.array(cifar10_dataset.data), np.array(cifar10_dataset.targets)
+        images, labels = np.array(cifar10_dataset.data), np.array(
+            cifar10_dataset.targets
+        )
 
         self.images, self.labels = self.create_binary_dataset(images, labels)
 
@@ -30,27 +80,36 @@ class BinaryCIFAR10(Dataset):
     def __getitem__(self, idx):
         image = self.images[idx]
         label = self.labels[idx]
-    
+
         image = Image.fromarray(image)
 
         if self.transform:
             image = self.transform(image)
-    
+
         return image, torch.tensor(label, dtype=torch.long)
 
-def main(device):
+
+def main(device, mvtec=False):
     # Load your dataset
     # Replace this with your actual dataset loading code
-    transform = transforms.Compose([
-        transforms.Resize(224),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    ])
-    
-    train_dataset = BinaryCIFAR10(train=True, transform=transform)
-    test_dataset = BinaryCIFAR10(train=False, transform=transform)
-    
-    train_loader = DataLoader(train_dataset, batch_size=128, shuffle=True, num_workers=2)
+    transform = transforms.Compose(
+        [
+            transforms.Resize(224),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+
+    if mvtec:
+        train_dataset = BinaryMVtec(train=True, transform=transform)
+        test_dataset = BinaryMVtec(train=False, transform=transform)
+    else:
+        train_dataset = BinaryCIFAR10(train=True, transform=transform)
+        test_dataset = BinaryCIFAR10(train=False, transform=transform)
+
+    train_loader = DataLoader(
+        train_dataset, batch_size=128, shuffle=True, num_workers=2
+    )
     test_loader = DataLoader(test_dataset, batch_size=128, shuffle=False, num_workers=2)
 
     # Load pre-trained ResNet model
@@ -127,7 +186,8 @@ def main(device):
     test_accuracy = correct / total
     print(f"Test accuracy: {test_accuracy}")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     device_str = "cpu"
     if torch.cuda.is_available():
         device_str = "cuda"
@@ -136,6 +196,5 @@ if __name__ == '__main__':
 
     print("Found device: " + device_str)
     device = torch.device(device_str)
-    
-    main(device)
 
+    main(device, mvtec=False)
