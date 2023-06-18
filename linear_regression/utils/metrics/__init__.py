@@ -8,7 +8,6 @@ from omegaconf import DictConfig, ListConfig
 
 from .anomaly_score_distribution import AnomalyScoreDistribution
 from .anomaly_score_threshold import AnomalyScoreThreshold
-from .aupr import AUPR
 from .auroc import AUROC
 from .collection import AnomalibMetricCollection
 from .min_max import MinMax

@@ -30,7 +30,6 @@ class Patchcore(AnomalyModule):
 
     def __init__(
         self,
-        lr_model,
         input_size: tuple[int, int],
         backbone: str,
         layers: list[str],
@@ -49,7 +48,6 @@ class Patchcore(AnomalyModule):
         )
         self.coreset_sampling_ratio = coreset_sampling_ratio
         self.embeddings: list[Tensor] = []
-        self.lr_model = lr_model
 
     def configure_optimizers(self) -> None:
         """Configure optimizers.
