@@ -329,12 +329,8 @@ class TorchInferencer(ABC):
         # than the image threshold.
         pred_label: str | None = None
         if "image_threshold" in metadata:
-            # import ipdb; ipdb.set_trace()
             pred_idx = pred_score >= metadata["image_threshold"]
             pred_label = "Anomalous" if pred_idx else "Normal"
-            # print("Setting prediction label to", pred_label)
-            # print("Prediction score:", pred_score)
-            # print("Image threshold:", metadata["image_threshold"])
 
         pred_mask: np.ndarray | None = None
         if "pixel_threshold" in metadata:
