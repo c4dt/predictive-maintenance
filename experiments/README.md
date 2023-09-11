@@ -7,16 +7,17 @@ can be used to train a linear regression model that would be able to predict the
 a new patch, thus learning to see if an image is anomalous or not.
 
 ## Setup and Running
-1. Install the requirements (Python 3.10)
+1. Install the requirements (from requirements.txt) (Python 3.10)
 2. Prepare Datasets
-2. Use the `linear_regression.ipynb` notebook to train the model and evaluate it.
+2. Use the different notebooks to train the contained model and evaluate it.
 
 
 ### Dataset
 Download MVTec here: https://www.mvtec.com/company/research/datasets/mvtec-ad/
 
-For this experiment we will use the grid dataset.
+For this experiment we will only use the **grid** dataset.
 Divide the grid dataset into datasets (a) and (b).
+The test dataset should be duplicated in both **dataset a** and **dataset b**
 
 (You can use the notebook as a guide to do this separation.)
 
@@ -24,8 +25,8 @@ Use half the dataset to train the PatchCore model.
 Store it in `datasets/MVTec_a/grid`  
 and b: only use the second half `datasets/MVTec_b/grid` to train the LR model.
 
-(We only use the grid dataset is you have noticed)
-
 ### Implementation
-the file `linear_regression.ipynb` contains the code along with all the instructions needed to run 
-the whole solution from first training MVTec to on hal the dataset to evaluating the LR model at the end.
+This project is a modified version of the library `anomalib` with the addition of our own experiments written
+in the multiple jupyter notebooks available.  
+The notebooks have very similar code, but each of them represent a different experiment conditions.  
+The notebooks also contain instructions on how to run them.

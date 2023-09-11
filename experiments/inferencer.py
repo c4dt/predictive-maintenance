@@ -92,7 +92,7 @@ class TorchInferencer(ABC):
         self,
         image: str | Path | np.ndarray,
         metadata: dict[str, Any] | None = None,
-    ) -> ImageResult:
+    ):
         """Perform a prediction for a given input image.
 
         The main workflow is (i) pre-processing, (ii) forward-pass, (iii) post-process.
@@ -120,15 +120,24 @@ class TorchInferencer(ABC):
         processed_image = self.pre_process(image_arr)
         predictions = self.forward(processed_image)
         output = self.post_process(predictions, metadata=metadata)
-        return ImageResult(
-            image=image_arr,
-            pred_score=output["pred_score"],
-            pred_label=output["pred_label"],
-            anomaly_map=output["anomaly_map"],
-            pred_mask=output["pred_mask"],
-            pred_boxes=output["pred_boxes"],
-            box_labels=output["box_labels"],
-        )
+
+        if isinstance(predictions, Tensor):
+            anomaly_map = predictions.detach().cpu().numpy()
+            pred_score = anomaly_map.reshape(-1).max()
+        else:
+            # NOTE: Patchcore `forward`` returns heatmap and score.
+            #   We need to add the following check to ensure the variables
+            #   are properly assigned. Without this check, the code
+            #   throws an error regarding type mismatch torch vs np.
+            if isinstance(predictions[1], (Tensor)):
+                anomaly_map, pred_score = predictions
+                anomaly_map = anomaly_map.detach().cpu().numpy()
+                pred_score = pred_score.detach().cpu().numpy()
+            else:
+                anomaly_map, pred_score = predictions
+                pred_score = pred_score.detach()
+
+        return pred_score, output["pred_label"]
 
     @staticmethod
     def _superimpose_segmentation_mask(metadata: dict, anomaly_map: np.ndarray, image: np.ndarray) -> np.ndarray:
@@ -320,12 +329,8 @@ class TorchInferencer(ABC):
         # than the image threshold.
         pred_label: str | None = None
         if "image_threshold" in metadata:
-            # import ipdb; ipdb.set_trace()
             pred_idx = pred_score >= metadata["image_threshold"]
             pred_label = "Anomalous" if pred_idx else "Normal"
-            print("Setting prediction label to", pred_label)
-            print("Prediction score:", pred_score)
-            print("Image threshold:", metadata["image_threshold"])
 
         pred_mask: np.ndarray | None = None
         if "pixel_threshold" in metadata:
